@@ -461,7 +461,7 @@ function update() {
 
     // Ускорение объектов каждые 30 секунд / Accelerate objects every 30 seconds
     if (Math.floor(gameTime % 30) === 0 && Math.floor(gameTime) > 0 && speedMultiplier < 2.5) { // Ограничение до 2.5x
-        speedMultiplier += 0.05; // Увеличение на 5% от базовой скорости / Increase by 5%
+        speedMultiplier += 0.1; // Увеличение на 10% от базовой скорости / Increase by 10%
         console.log('Speed increased, new multiplier:', speedMultiplier);
     }
 
