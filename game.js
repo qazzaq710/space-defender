@@ -8,6 +8,7 @@ if (!canvas || !ctx || !footer) {
     alert('Game initialization failed. Check console for details.');
     throw new Error('Missing DOM elements');
 }
+console.log('Canvas and context initialized:', canvas, ctx);
 
 // Установка размеров canvas, если не заданы / Set canvas size if not defined
 if (!canvas.width || !canvas.height) {
@@ -32,6 +33,7 @@ let gameTime = 0; // Время в игре (секунды) / Time in game (sec
 let mouseOverButton = false; // Курсор над кнопкой Restart / Mouse over Restart button
 let mouseOverDownload = false; // Курсор над кнопкой Save Score / Mouse over Save Score button
 let lastScreenshot = null; // Последний скриншот (data URL) / Last screenshot (data URL)
+let speedMultiplier = 1; // Множитель скорости для ускорения объектов / Speed multiplier for object acceleration
 
 // Загрузка изображений / Load images
 const playerImage = new Image();
@@ -68,6 +70,7 @@ const keys = {
 
 // Web Audio API для звуков / Web Audio API for sounds
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
 function playShootSound() {
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
@@ -81,6 +84,7 @@ function playShootSound() {
     oscillator.start();
     oscillator.stop(audioCtx.currentTime + 0.1);
 }
+
 function createExplosionSound() {
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
@@ -116,7 +120,7 @@ function createEnemy() {
         y: 0,
         width: 30,
         height: 30,
-        speed: 2,
+        speed: 2 * speedMultiplier,
         pulsePhase: Math.random() * Math.PI * 2 // Уникальная фаза для пульсации / Unique phase for pulsing
     };
 }
@@ -262,6 +266,7 @@ function drawBackground() {
     ctx.fillStyle = vignetteGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
+
 function drawPlayer() {
     if (!invulnerable || Math.floor(frameCount / 5) % 2 === 0) {
         if (playerImage.complete && playerImage.naturalWidth !== 0) {
@@ -272,12 +277,14 @@ function drawPlayer() {
         }
     }
 }
+
 function drawBullets() {
     player.bullets.forEach(bullet => {
         ctx.fillStyle = '#ff00ff';
         ctx.fillRect(bullet.x, bullet.y, 4, 10);
     });
 }
+
 function drawEnemies() {
     enemies.forEach(enemy => {
         ctx.save();
@@ -321,6 +328,7 @@ function drawEnemies() {
         ctx.restore();
     });
 }
+
 function drawAsteroids() {
     if (asteroidImage.complete && asteroidImage.naturalWidth !== 0) {
         asteroids.forEach(asteroid => {
@@ -335,6 +343,7 @@ function drawAsteroids() {
         });
     }
 }
+
 function drawParticles() {
     particles.forEach(p => {
         ctx.fillStyle = p.color ? `${p.color}${p.alpha})` : `rgba(255, 204, 0, ${p.alpha})`;
@@ -343,6 +352,7 @@ function drawParticles() {
         ctx.fill();
     });
 }
+
 function drawUI() {
     ctx.font = '16px Orbitron'; // Уменьшенный шрифт для UI / Reduced font size for UI
     ctx.fillStyle = 'white';
@@ -360,6 +370,7 @@ function drawUI() {
         x += 30;
     }
 }
+
 function drawStartScreen() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -375,6 +386,7 @@ function drawStartScreen() {
     ctx.font = '20px Orbitron';
     ctx.fillText('Start', canvas.width / 2, canvas.height / 2 + 35);
 }
+
 function drawGameOver() {
     console.log('Drawing Game Over, attempting to create screenshot'); // Отладка / Debug
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
@@ -447,6 +459,12 @@ function update() {
     // Обновление таймера / Update timer
     gameTime += 1 / 60; // Добавляем 1/60 секунды за кадр / Add 1/60 seconds per frame
 
+    // Ускорение объектов каждые 30 секунд / Accelerate objects every 30 seconds
+    if (Math.floor(gameTime % 30) === 0 && Math.floor(gameTime) > 0 && speedMultiplier < 2.5) { // Ограничение до 2.5x
+        speedMultiplier += 0.05; // Увеличение на 5% от базовой скорости / Increase by 5%
+        console.log('Speed increased, new multiplier:', speedMultiplier);
+    }
+
     if (invulnerable) {
         invulnerableTimer -= 1 / 60;
         if (invulnerableTimer <= 0) {
@@ -467,7 +485,7 @@ function update() {
     player.bullets = player.bullets.filter(bullet => bullet.y > 0);
     player.bullets.forEach(bullet => bullet.y -= bullet.speed);
 
-    if (Math.random() < 0.02) {
+    if (Math.random() < 0.01) { // Уменьшено в два раза вероятность появления кубов / Reduced enemy spawn chance by half
         enemies.push(createEnemy());
     }
 
@@ -476,14 +494,14 @@ function update() {
             x: Math.random() * canvas.width,
             y: 0,
             radius: 6 + Math.random() * 10, // Уменьшен радиус астероида для баланса / Reduced asteroid radius for balance
-            speed: 1 + Math.random() * 2
+            speed: (1 + Math.random() * 2) * speedMultiplier
         });
     }
 
     enemies = enemies.filter(enemy => enemy.y < canvas.height);
     enemies.forEach(enemy => {
         enemy.y += enemy.speed;
-        if (Math.random() < 0.01) { // 1% шанс на частицу / 1% chance for particle
+        if (Math.random() < 0.01) {
             createEnemyParticle(enemy);
         }
     });
@@ -540,7 +558,6 @@ function update() {
     for (let i = 0; i < 3; i++) {
         heartAlphas[i] += (heartTargets[i] - heartAlphas[i]) * 0.1;
     }
-    console.log('Heart Alphas:', heartAlphas, 'Targets:', heartTargets, 'Lives:', lives);
 
     frameCount++;
 }
@@ -634,6 +651,7 @@ function startGame() {
     particles = [];
     invulnerable = false;
     invulnerableTimer = 0;
+    speedMultiplier = 1; // Сброс множителя скорости / Reset speed multiplier
     lastScreenshot = null; // Сброс скриншота / Reset screenshot
     console.log('Game started');
 }
@@ -655,6 +673,7 @@ function restartGame() {
     invulnerableTimer = 0;
     canStartOrRestart = false;
     gameOverDelay = 0;
+    speedMultiplier = 1; // Сброс множителя скорости / Reset speed multiplier
     lastScreenshot = null; // Сброс скриншота / Reset screenshot
     console.log('Game restarted');
 }
@@ -667,7 +686,7 @@ function checkImagesLoaded() {
     console.log(`Image loaded, count: ${imagesLoaded}/${totalImages}`);
     if (imagesLoaded >= totalImages) {
         console.log('All images processed, starting game loop');
-        canStartOrRestart = true; // Разрешить старт после загрузки / Allow start after loading
+        canStartOrRestart = true;
         gameLoop();
     }
 }
